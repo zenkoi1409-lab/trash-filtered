@@ -19,39 +19,39 @@ const items = [
 
 const pets = {
   miso: {
-    ranger: 'GREEN RANGER',
-    boost: 'Tiny paws, big gratitude.',
+    ranger: 'JUNGLE RANGER',
+    boost: 'The jungle is breathing brighter.',
     evolutions: [
-      { name: 'Miso', title: 'SPROUTLING', mood: 'feeling sunny' },
-      { name: 'Miso Bloom', title: 'BUDDY BLOOM', mood: 'feeling brave' },
-      { name: 'Miso Grove', title: 'GARDEN GUARDIAN', mood: 'feeling radiant' }
+      { name: 'Rừng rậm', title: 'JUNGLE SCOUT', mood: 'guarding the canopy' },
+      { name: 'Rừng xanh', title: 'CANOPY RANGER', mood: 'growing wild' },
+      { name: 'Khu bảo tồn', title: 'FOREST GUARDIAN', mood: 'protecting every leaf' }
     ]
   },
   clover: {
-    ranger: 'CORAL RANGER',
-    boost: 'Clover is doing a happy wiggle.',
+    ranger: 'POLAR RANGER',
+    boost: 'The ice is sparkling clean.',
     evolutions: [
-      { name: 'Clover', title: 'LUCKY SPROUT', mood: 'feeling lucky' },
-      { name: 'Clover Charm', title: 'FORTUNE BLOOM', mood: 'feeling blessed' },
-      { name: 'Clover Crown', title: 'LUCK GARDENIAN', mood: 'feeling golden' }
+      { name: 'Bắc cực', title: 'ICE SCOUT', mood: 'feeling frosty' },
+      { name: 'Băng tuyết', title: 'AURORA RANGER', mood: 'chasing the aurora' },
+      { name: 'Tảng băng', title: 'POLAR GUARDIAN', mood: 'protecting the ice' }
     ]
   },
   pebble: {
-    ranger: 'VIOLET RANGER',
-    boost: 'Pebble shines like a polished stone.',
+    ranger: 'OCEAN RANGER',
+    boost: 'The ocean is calmer and clearer.',
     evolutions: [
-      { name: 'Pebble', title: 'LITTLE STONE', mood: 'feeling grounded' },
-      { name: 'Pebble Moss', title: 'MOSSY BUDDY', mood: 'feeling steady' },
-      { name: 'Pebble Peak', title: 'MOUNTAIN KEEPER', mood: 'feeling mighty' }
+      { name: 'Đại dương', title: 'TIDE SCOUT', mood: 'riding the waves' },
+      { name: 'San hô', title: 'REEF RANGER', mood: 'growing coral' },
+      { name: 'Biển xanh', title: 'OCEAN GUARDIAN', mood: 'protecting the deep' }
     ]
   },
   zuzu: {
-    ranger: 'GOLD RANGER',
-    boost: 'Zuzu sends a sparkly high five.',
+    ranger: 'DESERT RANGER',
+    boost: 'The desert wind is blowing clean.',
     evolutions: [
-      { name: 'Zuzu', title: 'SUN SPROUT', mood: 'feeling electric' },
-      { name: 'Zuzu Glow', title: 'GLOW BUDDY', mood: 'feeling bright' },
-      { name: 'Zuzu Nova', title: 'STAR GARDENIAN', mood: 'feeling cosmic' }
+      { name: 'Sa mạc', title: 'DUNE SCOUT', mood: 'following the sun' },
+      { name: 'Ốc đảo', title: 'OASIS RANGER', mood: 'finding fresh water' },
+      { name: 'Cồn cát', title: 'DESERT GUARDIAN', mood: 'protecting the dunes' }
     ]
   }
 };
