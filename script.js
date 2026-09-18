@@ -22,9 +22,11 @@ const pets = {
     ranger: 'JUNGLE RANGER',
     boost: 'The jungle is cheering for Miso.',
     skills: [
-      { name: 'Vine Lash', icon: '🌿', power: 18, detail: 'Steady strike' },
-      { name: 'Canopy Guard', icon: '🍃', power: 10, heal: 12, detail: 'Heal + shield' },
-      { name: 'Jungle Roar', icon: '🦁', power: 28, detail: 'Heavy strike' }
+      { name: 'Vine Lash', icon: '🌿', type: 'attack', detail: '10% damage' },
+      { name: 'Canopy Mend', icon: '🍃', type: 'heal', detail: 'Heal 5% HP' },
+      { name: 'Jungle Roar', icon: '🦁', type: 'stun', detail: 'Skip next turn' },
+      { name: 'Root Guard', icon: '🛡️', type: 'defense', detail: '-20% damage' },
+      { name: 'Toxic Spores', icon: '☠️', type: 'poison', detail: '10% next turn' }
     ],
     evolutions: [
       { name: 'Miso', title: 'JUNGLE SCOUT', mood: 'feeling leafy' },
@@ -38,9 +40,11 @@ const pets = {
     ranger: 'ARCTIC RANGER',
     boost: 'Clover sends a cool breeze of gratitude.',
     skills: [
-      { name: 'Frost Shard', icon: '❄️', power: 20, detail: 'Sharp strike' },
-      { name: 'Aurora Mend', icon: '🌌', power: 8, heal: 16, detail: 'Heal + calm' },
-      { name: 'Glacier Crash', icon: '🧊', power: 30, detail: 'Heavy strike' }
+      { name: 'Frost Shard', icon: '❄️', type: 'attack', detail: '10% damage' },
+      { name: 'Aurora Mend', icon: '🌌', type: 'heal', detail: 'Heal 5% HP' },
+      { name: 'Polar Pulse', icon: '🧊', type: 'stun', detail: 'Skip next turn' },
+      { name: 'Ice Wall', icon: '🏔️', type: 'defense', detail: '-20% damage' },
+      { name: 'Whiteout', icon: '🌨️', type: 'poison', detail: '10% next turn' }
     ],
     evolutions: [
       { name: 'Clover', title: 'ICE SCOUT', mood: 'feeling frosty' },
@@ -54,9 +58,11 @@ const pets = {
     ranger: 'OCEAN RANGER',
     boost: 'Pebble is making waves for a cleaner ocean.',
     skills: [
-      { name: 'Tidal Pulse', icon: '🌊', power: 19, detail: 'Flowing strike' },
-      { name: 'Reef Restore', icon: '🪸', power: 7, heal: 18, detail: 'Heal + reef' },
-      { name: 'Wavebreaker', icon: '🐋', power: 29, detail: 'Heavy strike' }
+      { name: 'Tidal Pulse', icon: '🌊', type: 'attack', detail: '10% damage' },
+      { name: 'Reef Restore', icon: '🪸', type: 'heal', detail: 'Heal 5% HP' },
+      { name: 'Sonic Current', icon: '🐋', type: 'stun', detail: 'Skip next turn' },
+      { name: 'Coral Shield', icon: '🪸', type: 'defense', detail: '-20% damage' },
+      { name: 'Deep Poison', icon: '🦑', type: 'poison', detail: '10% next turn' }
     ],
     evolutions: [
       { name: 'Pebble', title: 'TIDE SCOUT', mood: 'feeling fluid' },
@@ -70,9 +76,11 @@ const pets = {
     ranger: 'DESERT RANGER',
     boost: 'Zuzu lights up the desert trail.',
     skills: [
-      { name: 'Sand Spark', icon: '✨', power: 17, detail: 'Quick strike' },
-      { name: 'Oasis Bloom', icon: '🌵', power: 6, heal: 20, detail: 'Heal + refresh' },
-      { name: 'Solar Flare', icon: '☀️', power: 32, detail: 'Heavy strike' }
+      { name: 'Sand Spark', icon: '✨', type: 'attack', detail: '10% damage' },
+      { name: 'Oasis Bloom', icon: '🌵', type: 'heal', detail: 'Heal 5% HP' },
+      { name: 'Mirage Trap', icon: '🪞', type: 'stun', detail: 'Skip next turn' },
+      { name: 'Dune Armor', icon: '🏜️', type: 'defense', detail: '-20% damage' },
+      { name: 'Scorpion Venom', icon: '🦂', type: 'poison', detail: '10% next turn' }
     ],
     evolutions: [
       { name: 'Zuzu', title: 'DUNE SCOUT', mood: 'feeling warm' },
@@ -146,7 +154,8 @@ function renderAccount() {
 function renderSkills() {
   const skillGrid = $('skill-grid');
   if (!skillGrid) return;
-  skillGrid.innerHTML = pets[selectedPet].skills.map((skill, index) => `<button class="skill-button" type="button" data-skill-index="${index}" ${!battle || battle.status !== 'active' ? 'disabled' : ''}><span>${skill.icon}</span><strong>${skill.name}</strong><small>${skill.detail} · ${skill.power} DMG</small></button>`).join('');
+  const canAct = Boolean(battle && battle.status === 'active' && battle.turn === roomRole);
+  skillGrid.innerHTML = pets[selectedPet].skills.map((skill, index) => `<button class="skill-button" type="button" data-skill-index="${index}" ${!canAct ? 'disabled' : ''}><span>${skill.icon}</span><strong>${skill.name}</strong><small>${skill.type.toUpperCase()} · ${skill.detail}</small></button>`).join('');
   skillGrid.querySelectorAll('.skill-button').forEach((button) => button.addEventListener('click', () => useSkill(Number(button.dataset.skillIndex))));
 }
 
@@ -159,12 +168,12 @@ function renderBattle() {
   const opponent = roomRole === 'guest' ? battle.host : battle.guest;
   $('player-name').textContent = profile?.username || 'You';
   $('opponent-name').textContent = opponent.name || 'Opponent';
-  $('player-hp-label').textContent = `${player.hp} HP`;
-  $('opponent-hp-label').textContent = `${opponent.hp} HP`;
+  $('player-hp-label').textContent = `${player.hp}% HP`;
+  $('opponent-hp-label').textContent = `${opponent.hp}% HP`;
   $('player-health').style.width = `${player.hp}%`;
   $('opponent-health').style.width = `${opponent.hp}%`;
-  $('battle-round').textContent = `ROUND ${battle.round} / 3`;
-  $('battle-status').textContent = battle.status === 'active' ? 'YOUR TURN' : battle.status.toUpperCase();
+  $('battle-round').textContent = `TURN ${battle.turnNumber}`;
+  $('battle-status').textContent = battle.status === 'active' ? (battle.turn === roomRole ? 'YOUR TURN' : 'OPPONENT TURN') : (battle.winner === roomRole ? 'YOU WIN' : 'YOU LOSE');
   $('battle-log').textContent = battle.log;
 }
 
@@ -185,7 +194,7 @@ function createRoom() {
   do code = String(Math.floor(1000 + Math.random() * 9000)); while (rooms[code]);
   room = { code, host: profile.username };
   roomRole = 'host';
-  battle = { status: 'waiting', round: 1, log: 'Room ready. Share the four-digit code with another ranger.', host: { name: profile.username, hp: 100 }, guest: { name: '', hp: 100 } };
+  battle = { status: 'waiting', turn: 'host', turnNumber: 1, log: 'Room ready. Share the four-digit code with another ranger.', host: { name: profile.username, hp: 100, defending: false, stunned: false, poisoned: false }, guest: { name: '', hp: 100, defending: false, stunned: false, poisoned: false } };
   rooms[code] = { host: profile.username, guest: '', battle };
   localStorage.setItem('ecoRangerRooms', JSON.stringify(rooms));
   setPanelFeedback('room-feedback', `Room ${code} created. Waiting for an opponent.`, 'good');
@@ -216,9 +225,11 @@ function joinRoom() {
   room = { code, host: found.host, guest: profile.username };
   roomRole = 'guest';
   battle = found.battle;
-  battle.guest = { name: profile.username, hp: 100 };
+  battle.guest = { name: profile.username, hp: 100, defending: false, stunned: false, poisoned: false };
   battle.status = 'active';
-  battle.log = `${profile.username} joined the arena. Choose a skill.`;
+  battle.turn = 'host';
+  battle.turnNumber = 1;
+  battle.log = `${profile.username} joined the arena. ${battle.host.name} goes first.`;
   found.guest = profile.username;
   found.battle = battle;
   rooms[code] = found;
@@ -228,35 +239,73 @@ function joinRoom() {
 }
 
 function useSkill(skillIndex) {
-  if (!battle || battle.status !== 'active') return;
+  if (!battle || battle.status !== 'active' || battle.turn !== roomRole) return;
   const skill = pets[selectedPet].skills[skillIndex];
   const player = roomRole === 'guest' ? battle.guest : battle.host;
   const opponent = roomRole === 'guest' ? battle.host : battle.guest;
-  opponent.hp = Math.max(0, opponent.hp - skill.power);
-  player.hp = Math.min(100, player.hp + (skill.heal || 0));
-  battle.log = `${profile.username} used ${skill.name}: ${skill.power} damage${skill.heal ? ` and recovered ${skill.heal} HP` : ''}.`;
+  let result = `${profile.username} used ${skill.name}.`;
+  if (skill.type === 'attack') {
+    applyDamage(opponent, 10);
+    result += ' It dealt 10% damage.';
+  } else if (skill.type === 'heal') {
+    player.hp = Math.min(100, player.hp + 5);
+    result += ' You recovered 5% HP.';
+  } else if (skill.type === 'stun') {
+    opponent.stunned = true;
+    result += ' The opponent will lose their next turn.';
+  } else if (skill.type === 'defense') {
+    player.defending = true;
+    result += ' Incoming damage is reduced by 20%.';
+  } else if (skill.type === 'poison') {
+    opponent.poisoned = true;
+    result += ' Poison will deal 10% damage at the opponent\'s next turn.';
+  }
+  battle.log = result;
   if (opponent.hp <= 0) {
-    battle.status = 'victory';
+    battle.status = 'finished';
+    battle.winner = roomRole;
     profile.wins = (profile.wins || 0) + 1;
-    battle.log += ' Victory! The arena is cleaner already.';
+    battle.log += ' Victory! The opponent reached 0% HP.';
     saveProfile();
     syncRoom();
     render();
     return;
   }
-  const counter = pets[roomRole === 'guest' ? 'miso' : 'pebble'].skills[(battle.round - 1) % 3];
-  player.hp = Math.max(0, player.hp - Math.max(8, counter.power - 5));
-  battle.round += 1;
-  if (player.hp <= 0 || battle.round > 3) {
-    battle.status = player.hp > 0 ? 'victory' : 'defeat';
-    profile[battle.status === 'victory' ? 'wins' : 'losses'] = (profile[battle.status === 'victory' ? 'wins' : 'losses'] || 0) + 1;
-    battle.log += player.hp > 0 ? ' Three rounds complete. You win on points!' : ' Your ranger needs a recharge.';
-  } else {
-    battle.log += ` Opponent countered with ${counter.name}.`;
-  }
+  battle.turn = roomRole === 'host' ? 'guest' : 'host';
+  battle.turnNumber += 1;
   saveProfile();
   syncRoom();
   render();
+}
+
+function applyDamage(target, baseDamage) {
+  const damage = target.defending ? Math.ceil(baseDamage * .8) : baseDamage;
+  target.hp = Math.max(0, target.hp - damage);
+  target.defending = false;
+}
+
+function processTurnStart() {
+  if (!battle || battle.status !== 'active' || battle.turn !== roomRole) return false;
+  const player = roomRole === 'guest' ? battle.guest : battle.host;
+  if (player.poisoned) {
+    applyDamage(player, 10);
+    player.poisoned = false;
+    battle.log = `${player.name} took 10% poison damage.`;
+    if (player.hp <= 0) {
+      battle.status = 'finished';
+      battle.winner = roomRole === 'host' ? 'guest' : 'host';
+      profile.losses = (profile.losses || 0) + 1;
+      return true;
+    }
+  }
+  if (player.stunned) {
+    player.stunned = false;
+    battle.turn = roomRole === 'host' ? 'guest' : 'host';
+    battle.turnNumber += 1;
+    battle.log = `${player.name} was stunned and lost this turn.`;
+    return true;
+  }
+  return false;
 }
 
 function syncRoom() {
@@ -273,6 +322,7 @@ function loadRoomFromStorage() {
   const stored = rooms[room.code];
   if (!stored) return;
   battle = stored.battle;
+  if (processTurnStart()) syncRoom();
   render();
 }
 
