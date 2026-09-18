@@ -21,50 +21,82 @@ const pets = {
   miso: {
     ranger: 'JUNGLE RANGER',
     boost: 'The jungle is cheering for Miso.',
+    skills: [
+      { name: 'Vine Lash', icon: '🌿', power: 18, detail: 'Steady strike' },
+      { name: 'Canopy Guard', icon: '🍃', power: 10, heal: 12, detail: 'Heal + shield' },
+      { name: 'Jungle Roar', icon: '🦁', power: 28, detail: 'Heavy strike' }
+    ],
     evolutions: [
       { name: 'Miso', title: 'JUNGLE SCOUT', mood: 'feeling leafy' },
       { name: 'Miso Bloom', title: 'CANOPY RANGER', mood: 'feeling brave' },
-      { name: 'Miso Grove', title: 'RAINFOREST GUARDIAN', mood: 'feeling radiant' }
+      { name: 'Miso Grove', title: 'RAINFOREST GUARDIAN', mood: 'feeling radiant' },
+      { name: 'Miso Titan', title: 'ANCIENT CANOPY', mood: 'feeling mighty' },
+      { name: 'Miso Prime', title: 'WORLDROOT KEEPER', mood: 'feeling legendary' }
     ]
   },
   clover: {
     ranger: 'ARCTIC RANGER',
     boost: 'Clover sends a cool breeze of gratitude.',
+    skills: [
+      { name: 'Frost Shard', icon: '❄️', power: 20, detail: 'Sharp strike' },
+      { name: 'Aurora Mend', icon: '🌌', power: 8, heal: 16, detail: 'Heal + calm' },
+      { name: 'Glacier Crash', icon: '🧊', power: 30, detail: 'Heavy strike' }
+    ],
     evolutions: [
       { name: 'Clover', title: 'ICE SCOUT', mood: 'feeling frosty' },
       { name: 'Clover Charm', title: 'AURORA RANGER', mood: 'feeling crisp' },
-      { name: 'Clover Crown', title: 'POLAR GUARDIAN', mood: 'feeling radiant' }
+      { name: 'Clover Crown', title: 'POLAR GUARDIAN', mood: 'feeling radiant' },
+      { name: 'Clover Halo', title: 'ICEFIELD SOVEREIGN', mood: 'feeling mighty' },
+      { name: 'Clover Prime', title: 'NORTHSTAR KEEPER', mood: 'feeling legendary' }
     ]
   },
   pebble: {
     ranger: 'OCEAN RANGER',
     boost: 'Pebble is making waves for a cleaner ocean.',
+    skills: [
+      { name: 'Tidal Pulse', icon: '🌊', power: 19, detail: 'Flowing strike' },
+      { name: 'Reef Restore', icon: '🪸', power: 7, heal: 18, detail: 'Heal + reef' },
+      { name: 'Wavebreaker', icon: '🐋', power: 29, detail: 'Heavy strike' }
+    ],
     evolutions: [
       { name: 'Pebble', title: 'TIDE SCOUT', mood: 'feeling fluid' },
       { name: 'Pebble Moss', title: 'REEF RANGER', mood: 'feeling steady' },
-      { name: 'Pebble Peak', title: 'OCEAN GUARDIAN', mood: 'feeling mighty' }
+      { name: 'Pebble Peak', title: 'OCEAN GUARDIAN', mood: 'feeling mighty' },
+      { name: 'Pebble Surge', title: 'ABYSSAL WARDEN', mood: 'feeling immense' },
+      { name: 'Pebble Prime', title: 'BLUE PLANET KEEPER', mood: 'feeling legendary' }
     ]
   },
   zuzu: {
     ranger: 'DESERT RANGER',
     boost: 'Zuzu lights up the desert trail.',
+    skills: [
+      { name: 'Sand Spark', icon: '✨', power: 17, detail: 'Quick strike' },
+      { name: 'Oasis Bloom', icon: '🌵', power: 6, heal: 20, detail: 'Heal + refresh' },
+      { name: 'Solar Flare', icon: '☀️', power: 32, detail: 'Heavy strike' }
+    ],
     evolutions: [
       { name: 'Zuzu', title: 'DUNE SCOUT', mood: 'feeling warm' },
       { name: 'Zuzu Glow', title: 'OASIS RANGER', mood: 'feeling bright' },
-      { name: 'Zuzu Nova', title: 'DESERT GUARDIAN', mood: 'feeling cosmic' }
+      { name: 'Zuzu Nova', title: 'DESERT GUARDIAN', mood: 'feeling cosmic' },
+      { name: 'Zuzu Mirage', title: 'DUNE SOVEREIGN', mood: 'feeling immense' },
+      { name: 'Zuzu Prime', title: 'SUNLAND KEEPER', mood: 'feeling legendary' }
     ]
   }
 };
 
-let xp = 0;
-let level = 1;
+let profile = JSON.parse(localStorage.getItem('ecoRangerProfile') || 'null');
+let xp = profile?.xp || 0;
+let level = profile?.level || 1;
 let combo = 0;
 let streak = 0;
-let sorted = 0;
-let feedCost = 25;
+let sorted = profile?.sorted || 0;
+let feedCost = profile?.feedCost || 25;
 let isMuted = false;
-let selectedPet = 'miso';
+let selectedPet = profile?.selectedPet || 'miso';
 let selectedVideo = null;
+let room = null;
+let roomRole = '';
+let battle = null;
 
 const $ = (id) => document.getElementById(id);
 const feedback = $('feedback');
@@ -72,7 +104,7 @@ const feedback = $('feedback');
 function render() {
   const progress = Math.min(100, (xp % 100));
   const pet = pets[selectedPet];
-  const evolutionIndex = Math.min(pet.evolutions.length - 1, level - 1);
+  const evolutionIndex = Math.min(pet.evolutions.length - 1, Math.floor((level - 1) / 2));
   const evolution = pet.evolutions[evolutionIndex];
   $('xp-total').textContent = String(xp).padStart(3, '0');
   $('combo-total').textContent = `x${combo}`;
@@ -88,6 +120,160 @@ function render() {
   $('feed-cost').textContent = `${feedCost} XP`;
   $('feed-button').disabled = xp < feedCost;
   $('items-sorted').textContent = `${sorted} video${sorted === 1 ? '' : 's'} shared today`;
+  renderAccount();
+  renderSkills();
+  renderBattle();
+}
+
+function saveProfile() {
+  if (!profile) return;
+  profile.xp = xp;
+  profile.level = level;
+  profile.selectedPet = selectedPet;
+  profile.feedCost = feedCost;
+  profile.sorted = sorted;
+  localStorage.setItem('ecoRangerProfile', JSON.stringify(profile));
+}
+
+function renderAccount() {
+  $('account-label').textContent = profile?.username || 'Sign in';
+  $('account-avatar').textContent = profile?.username?.slice(0, 1).toUpperCase() || '?';
+  $('account-title').textContent = profile ? `Welcome back, ${profile.username}` : 'Create your EcoRanger account';
+  $('username-input').value = profile?.username || '';
+  $('account-logout').hidden = !profile;
+}
+
+function renderSkills() {
+  const skillGrid = $('skill-grid');
+  if (!skillGrid) return;
+  skillGrid.innerHTML = pets[selectedPet].skills.map((skill, index) => `<button class="skill-button" type="button" data-skill-index="${index}" ${!battle || battle.status !== 'active' ? 'disabled' : ''}><span>${skill.icon}</span><strong>${skill.name}</strong><small>${skill.detail} · ${skill.power} DMG</small></button>`).join('');
+  skillGrid.querySelectorAll('.skill-button').forEach((button) => button.addEventListener('click', () => useSkill(Number(button.dataset.skillIndex))));
+}
+
+function renderBattle() {
+  const panel = $('battle-panel');
+  panel.hidden = !battle;
+  $('room-code-label').textContent = room?.code || '----';
+  if (!battle) return;
+  const player = roomRole === 'guest' ? battle.guest : battle.host;
+  const opponent = roomRole === 'guest' ? battle.host : battle.guest;
+  $('player-name').textContent = profile?.username || 'You';
+  $('opponent-name').textContent = opponent.name || 'Opponent';
+  $('player-hp-label').textContent = `${player.hp} HP`;
+  $('opponent-hp-label').textContent = `${opponent.hp} HP`;
+  $('player-health').style.width = `${player.hp}%`;
+  $('opponent-health').style.width = `${opponent.hp}%`;
+  $('battle-round').textContent = `ROUND ${battle.round} / 3`;
+  $('battle-status').textContent = battle.status === 'active' ? 'YOUR TURN' : battle.status.toUpperCase();
+  $('battle-log').textContent = battle.log;
+}
+
+function setPanelFeedback(id, message, type = '') {
+  const element = $(id);
+  element.textContent = message;
+  element.className = `panel-feedback ${type}`;
+}
+
+function createRoom() {
+  if (!profile) {
+    $('account-panel').hidden = false;
+    setPanelFeedback('account-feedback', 'Create a ranger profile before opening a room.', 'bad');
+    return;
+  }
+  const rooms = JSON.parse(localStorage.getItem('ecoRangerRooms') || '{}');
+  let code;
+  do code = String(Math.floor(1000 + Math.random() * 9000)); while (rooms[code]);
+  room = { code, host: profile.username };
+  roomRole = 'host';
+  battle = { status: 'waiting', round: 1, log: 'Room ready. Share the four-digit code with another ranger.', host: { name: profile.username, hp: 100 }, guest: { name: '', hp: 100 } };
+  rooms[code] = { host: profile.username, guest: '', battle };
+  localStorage.setItem('ecoRangerRooms', JSON.stringify(rooms));
+  setPanelFeedback('room-feedback', `Room ${code} created. Waiting for an opponent.`, 'good');
+  render();
+}
+
+function joinRoom() {
+  if (!profile) {
+    $('account-panel').hidden = false;
+    setPanelFeedback('account-feedback', 'Create a ranger profile before joining a room.', 'bad');
+    return;
+  }
+  const code = $('room-code-input').value.trim();
+  const rooms = JSON.parse(localStorage.getItem('ecoRangerRooms') || '{}');
+  const found = rooms[code];
+  if (!/^\d{4}$/.test(code) || !found) {
+    setPanelFeedback('room-feedback', 'Enter a valid active four-digit room code.', 'bad');
+    return;
+  }
+  if (found.host === profile.username) {
+    setPanelFeedback('room-feedback', 'You cannot join your own room.', 'bad');
+    return;
+  }
+  if (found.guest && found.guest !== profile.username) {
+    setPanelFeedback('room-feedback', 'That room already has two rangers.', 'bad');
+    return;
+  }
+  room = { code, host: found.host, guest: profile.username };
+  roomRole = 'guest';
+  battle = found.battle;
+  battle.guest = { name: profile.username, hp: 100 };
+  battle.status = 'active';
+  battle.log = `${profile.username} joined the arena. Choose a skill.`;
+  found.guest = profile.username;
+  found.battle = battle;
+  rooms[code] = found;
+  localStorage.setItem('ecoRangerRooms', JSON.stringify(rooms));
+  setPanelFeedback('room-feedback', `Joined room ${code}. Battle started!`, 'good');
+  render();
+}
+
+function useSkill(skillIndex) {
+  if (!battle || battle.status !== 'active') return;
+  const skill = pets[selectedPet].skills[skillIndex];
+  const player = roomRole === 'guest' ? battle.guest : battle.host;
+  const opponent = roomRole === 'guest' ? battle.host : battle.guest;
+  opponent.hp = Math.max(0, opponent.hp - skill.power);
+  player.hp = Math.min(100, player.hp + (skill.heal || 0));
+  battle.log = `${profile.username} used ${skill.name}: ${skill.power} damage${skill.heal ? ` and recovered ${skill.heal} HP` : ''}.`;
+  if (opponent.hp <= 0) {
+    battle.status = 'victory';
+    profile.wins = (profile.wins || 0) + 1;
+    battle.log += ' Victory! The arena is cleaner already.';
+    saveProfile();
+    syncRoom();
+    render();
+    return;
+  }
+  const counter = pets[roomRole === 'guest' ? 'miso' : 'pebble'].skills[(battle.round - 1) % 3];
+  player.hp = Math.max(0, player.hp - Math.max(8, counter.power - 5));
+  battle.round += 1;
+  if (player.hp <= 0 || battle.round > 3) {
+    battle.status = player.hp > 0 ? 'victory' : 'defeat';
+    profile[battle.status === 'victory' ? 'wins' : 'losses'] = (profile[battle.status === 'victory' ? 'wins' : 'losses'] || 0) + 1;
+    battle.log += player.hp > 0 ? ' Three rounds complete. You win on points!' : ' Your ranger needs a recharge.';
+  } else {
+    battle.log += ` Opponent countered with ${counter.name}.`;
+  }
+  saveProfile();
+  syncRoom();
+  render();
+}
+
+function syncRoom() {
+  if (!room) return;
+  const rooms = JSON.parse(localStorage.getItem('ecoRangerRooms') || '{}');
+  if (!rooms[room.code]) return;
+  rooms[room.code].battle = battle;
+  localStorage.setItem('ecoRangerRooms', JSON.stringify(rooms));
+}
+
+function loadRoomFromStorage() {
+  if (!room) return;
+  const rooms = JSON.parse(localStorage.getItem('ecoRangerRooms') || '{}');
+  const stored = rooms[room.code];
+  if (!stored) return;
+  battle = stored.battle;
+  render();
 }
 
 function setFeedback(message, type = '') {
@@ -135,7 +321,7 @@ function publishVideo() {
   $('publish-button').disabled = true;
   if (xp >= previousLevel * 100) {
     level += 1;
-    const newEvolution = pets[selectedPet].evolutions[Math.min(level - 1, 2)];
+    const newEvolution = pets[selectedPet].evolutions[Math.min(Math.floor((level - 1) / 2), 4)];
     setFeedback(`LEVEL UP! ${newEvolution.name} is growing brighter. +${gained} XP`, 'good');
   } else {
     setFeedback(`Cleanup shared. Your companion gained +${gained} XP.`, 'good');
@@ -143,6 +329,7 @@ function publishVideo() {
   const best = Math.max(xp, Number(localStorage.getItem('sortSproutBest') || 0));
   localStorage.setItem('sortSproutBest', best);
   $('high-score').textContent = `BEST ${String(best).padStart(3, '0')}`;
+  saveProfile();
   render();
 }
 
@@ -152,14 +339,40 @@ function feedPet() {
   feedCost += 10;
   $('pet-blob').animate([{ transform: 'scale(1)' }, { transform: 'scale(1.14) rotate(-4deg)' }, { transform: 'scale(1)' }], { duration: 500, easing: 'ease-out' });
   setFeedback(pets[selectedPet].boost, 'good');
+  saveProfile();
   render();
 }
 
+$('account-toggle').addEventListener('click', () => {
+  $('account-panel').hidden = !$('account-panel').hidden;
+});
+$('account-save').addEventListener('click', () => {
+  const username = $('username-input').value.trim();
+  if (username.length < 3) {
+    setPanelFeedback('account-feedback', 'Use at least 3 characters for your ranger name.', 'bad');
+    return;
+  }
+  profile = { ...(profile || {}), username, xp, level, selectedPet, feedCost, sorted, wins: profile?.wins || 0, losses: profile?.losses || 0 };
+  saveProfile();
+  setPanelFeedback('account-feedback', `Profile saved. Welcome, ${username}!`, 'good');
+  render();
+});
+$('account-logout').addEventListener('click', () => {
+  profile = null;
+  room = null;
+  battle = null;
+  localStorage.removeItem('ecoRangerProfile');
+  setPanelFeedback('account-feedback', 'Profile cleared. Create another ranger name.', 'good');
+  render();
+});
+$('create-room').addEventListener('click', createRoom);
+$('join-room').addEventListener('click', joinRoom);
 $('video-input').addEventListener('change', handleVideoSelect);
 $('publish-button').addEventListener('click', publishVideo);
 $('feed-button').addEventListener('click', feedPet);
 document.querySelectorAll('.pet-option').forEach((option) => option.addEventListener('click', () => {
   selectedPet = option.dataset.pet;
+  saveProfile();
   render();
   setFeedback(`${pets[selectedPet].evolutions[0].name} is ready to grow.`, 'good');
 }));
@@ -169,4 +382,7 @@ $('sound-toggle').addEventListener('click', () => {
   $('sound-toggle').textContent = isMuted ? '◌' : '◒';
 });
 $('high-score').textContent = `BEST ${String(Number(localStorage.getItem('sortSproutBest') || 0)).padStart(3, '0')}`;
+window.addEventListener('storage', (event) => {
+  if (event.key === 'ecoRangerRooms') loadRoomFromStorage();
+});
 render();
