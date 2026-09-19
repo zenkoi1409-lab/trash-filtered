@@ -84,7 +84,13 @@ const pets = {
   }
 };
 
-let profile = JSON.parse(localStorage.getItem('ecoRangerProfile') || 'null');
+let profile = null;
+try {
+  profile = JSON.parse(localStorage.getItem('ecoRangerProfile') || 'null');
+} catch (error) {
+  console.warn('Invalid saved profile. Resetting local state.', error);
+  localStorage.removeItem('ecoRangerProfile');
+}
 let xp = profile?.xp || 0;
 let level = profile?.level || 1;
 let combo = 0;
@@ -153,22 +159,37 @@ function renderSkills() {
   skillGrid.querySelectorAll('.skill-button').forEach((button) => button.addEventListener('click', () => useSkill(Number(button.dataset.skillIndex))));
 }
 
+function ensureBattleState() {
+  if (!battle) {
+    battle = {
+      status: 'waiting',
+      round: 1,
+      log: 'Waiting for a ranger to join the arena.',
+      host: { name: profile?.username || 'Host', hp: 100 },
+      guest: { name: '', hp: 100 }
+    };
+  }
+  battle.host = battle.host || { name: profile?.username || 'Host', hp: 100 };
+  battle.guest = battle.guest || { name: '', hp: 100 };
+}
+
 function renderBattle() {
   const panel = $('battle-panel');
   panel.hidden = !battle;
   $('room-code-label').textContent = room?.code || '----';
   if (!battle) return;
+  ensureBattleState();
   const player = roomRole === 'guest' ? battle.guest : battle.host;
   const opponent = roomRole === 'guest' ? battle.host : battle.guest;
-  $('player-name').textContent = profile?.username || 'You';
+  $('player-name').textContent = profile?.username || battle.host.name || 'You';
   $('opponent-name').textContent = opponent.name || 'Opponent';
   $('player-hp-label').textContent = `${player.hp} HP`;
   $('opponent-hp-label').textContent = `${opponent.hp} HP`;
-  $('player-health').style.width = `${player.hp}%`;
-  $('opponent-health').style.width = `${opponent.hp}%`;
+  $('player-health').style.width = `${Math.max(0, Math.min(100, player.hp || 0))}%`;
+  $('opponent-health').style.width = `${Math.max(0, Math.min(100, opponent.hp || 0))}%`;
   $('battle-round').textContent = `ROUND ${battle.round} / 3`;
-  $('battle-status').textContent = battle.status === 'active' ? 'YOUR TURN' : battle.status.toUpperCase();
-  $('battle-log').textContent = battle.log;
+  $('battle-status').textContent = battle.status === 'active' ? 'YOUR TURN' : (battle.status || 'WAITING').toUpperCase();
+  $('battle-log').textContent = battle.log || 'Choose a skill when the battle starts.';
 }
 
 function setPanelFeedback(id, message, type = '') {
@@ -182,10 +203,22 @@ function closePeerConnection() {
     clearTimeout(directMatchTimeout);
     directMatchTimeout = null;
   }
-  if (peerConnection) peerConnection.close();
-  if (peer) peer.destroy();
-  peerConnection = null;
-  peer = null;
+  if (peerConnection) {
+    try {
+      peerConnection.close();
+    } catch (error) {
+      console.warn('Peer connection close failed.', error);
+    }
+    peerConnection = null;
+  }
+  if (peer) {
+    try {
+      peer.destroy();
+    } catch (error) {
+      console.warn('Peer destroy failed.', error);
+    }
+    peer = null;
+  }
 }
 
 function normalizeMatchKey(value) {
@@ -216,9 +249,10 @@ function registerHostConnection(connection) {
     return;
   }
   peerConnection = connection;
+  ensureBattleState();
   connection.on('data', (message) => {
     if (message?.type === 'ping') {
-      connection.send({ type: 'pong', username: profile.username });
+      connection.send({ type: 'pong', username: profile?.username || 'Host' });
       return;
     }
     if (message?.type === 'pong') {
@@ -237,6 +271,10 @@ function registerHostConnection(connection) {
       render();
     }
   });
+  connection.on('error', (error) => {
+    console.warn('Host connection error:', error);
+    setPanelFeedback('room-feedback', 'The match connection had a problem. Try again.', 'bad');
+  });
   connection.on('close', () => {
     peerConnection = null;
     if (battle?.status === 'active') {
@@ -253,13 +291,13 @@ function registerGuestConnection(connection, code) {
   const confirmationTimeout = () => {
     if (peerConnection === connection && battle === null) {
       setPanelFeedback('room-feedback', `${code} is not online right now. Try another ranger name.`, 'bad');
-      connection.close();
+      try { connection.close(); } catch (error) { console.warn('Unable to close offline guest connection.', error); }
     }
   };
   if (directMatchTimeout) clearTimeout(directMatchTimeout);
   directMatchTimeout = setTimeout(confirmationTimeout, 4000);
   connection.on('open', () => {
-    connection.send({ type: 'ping', username: profile.username });
+    connection.send({ type: 'ping', username: profile?.username || 'Guest' });
     setPanelFeedback('room-feedback', `Connecting to ${code}...`, 'good');
   });
   connection.on('data', (message) => {
@@ -277,6 +315,12 @@ function registerGuestConnection(connection, code) {
       render();
     }
     if (message?.type === 'error') setPanelFeedback('room-feedback', message.message, 'bad');
+  });
+  connection.on('error', (error) => {
+    console.warn('Guest connection error:', error);
+    if (directMatchTimeout) clearTimeout(directMatchTimeout);
+    directMatchTimeout = null;
+    setPanelFeedback('room-feedback', `${code} is not online right now. Try another ranger name.`, 'bad');
   });
   connection.on('close', () => {
     if (directMatchTimeout) {
@@ -503,6 +547,14 @@ $('sound-toggle').addEventListener('click', () => {
   isMuted = !isMuted;
   $('sound-toggle').classList.toggle('is-muted', isMuted);
   $('sound-toggle').textContent = isMuted ? '◌' : '◒';
+});
+window.addEventListener('beforeunload', () => {
+  closePeerConnection();
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    closePeerConnection();
+  }
 });
 $('high-score').textContent = `BEST ${String(Number(localStorage.getItem('sortSproutBest') || 0)).padStart(3, '0')}`;
 render();
