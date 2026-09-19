@@ -1,0 +1,7 @@
+.gitignore
+node_modules/
+*.log
+.cache/
+dist/
+build/
+.DS_Store
