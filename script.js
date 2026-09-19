@@ -183,8 +183,18 @@ function closePeerConnection() {
   peer = null;
 }
 
-function roomPeerId(code) {
-  return `ecoranger-${code}`;
+function normalizeMatchKey(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 24);
+}
+
+function roomPeerId(codeOrName) {
+  const key = normalizeMatchKey(codeOrName);
+  return key ? `ecoranger-${key}` : 'ecoranger-arena';
 }
 
 function sendRoomMessage(message) {
@@ -246,49 +256,58 @@ function registerGuestConnection(connection, code) {
 function createRoom() {
   if (!profile) {
     $('account-panel').hidden = false;
-    setPanelFeedback('account-feedback', 'Create a ranger profile before opening a room.', 'bad');
+    setPanelFeedback('account-feedback', 'Create a ranger profile before opening a direct match.', 'bad');
     return;
   }
   if (typeof Peer === 'undefined') {
-    setPanelFeedback('room-feedback', 'Online rooms are unavailable because the connection service did not load.', 'bad');
+    setPanelFeedback('room-feedback', 'Online match is unavailable because the connection service did not load.', 'bad');
     return;
   }
   closePeerConnection();
-  const code = String(Math.floor(1000 + Math.random() * 9000));
-  room = { code, host: profile.username };
+  const matchKey = normalizeMatchKey(profile.username);
+  if (!matchKey) {
+    setPanelFeedback('room-feedback', 'Choose a valid ranger name before opening a direct match.', 'bad');
+    return;
+  }
+  room = { code: profile.username, host: profile.username };
   roomRole = 'host';
-  battle = { status: 'waiting', round: 1, log: 'Room ready. Share the four-digit code with another ranger.', host: { name: profile.username, hp: 100 }, guest: { name: '', hp: 100 } };
-  peer = new Peer(roomPeerId(code));
-  peer.on('open', () => setPanelFeedback('room-feedback', `Room ${code} created. Share this code with the other ranger.`, 'good'));
+  battle = { status: 'waiting', round: 1, log: 'Direct match ready. Share your ranger name with another ranger.', host: { name: profile.username, hp: 100 }, guest: { name: '', hp: 100 } };
+  peer = new Peer(roomPeerId(profile.username));
+  peer.on('open', () => setPanelFeedback('room-feedback', `Direct match opened for ${profile.username}. Tell another ranger to challenge this name.`, 'good'));
   peer.on('connection', registerHostConnection);
-  peer.on('error', () => setPanelFeedback('room-feedback', 'Could not create the online room. Try again.', 'bad'));
+  peer.on('error', () => setPanelFeedback('room-feedback', 'Could not open the direct match. Try again.', 'bad'));
   render();
 }
 
 function joinRoom() {
   if (!profile) {
     $('account-panel').hidden = false;
-    setPanelFeedback('account-feedback', 'Create a ranger profile before joining a room.', 'bad');
+    setPanelFeedback('account-feedback', 'Create a ranger profile before challenging another ranger.', 'bad');
     return;
   }
-  const code = $('room-code-input').value.replace(/\D/g, '').slice(0, 4);
-  $('room-code-input').value = code;
-  if (!/^\d{4}$/.test(code)) {
-    setPanelFeedback('room-feedback', 'Room code must contain exactly 4 digits.', 'bad');
+  const targetName = $('room-code-input').value.trim();
+  $('room-code-input').value = targetName;
+  if (!targetName) {
+    setPanelFeedback('room-feedback', 'Enter the other ranger name to challenge them directly.', 'bad');
+    return;
+  }
+  const targetKey = normalizeMatchKey(targetName);
+  if (targetKey === normalizeMatchKey(profile.username)) {
+    setPanelFeedback('room-feedback', 'You cannot challenge yourself. Choose another ranger name.', 'bad');
     return;
   }
   if (typeof Peer === 'undefined') {
-    setPanelFeedback('room-feedback', 'Online rooms are unavailable because the connection service did not load.', 'bad');
+    setPanelFeedback('room-feedback', 'Online match is unavailable because the connection service did not load.', 'bad');
     return;
   }
   closePeerConnection();
-  room = { code, host: '', guest: profile.username };
+  room = { code: targetName, host: '', guest: profile.username };
   roomRole = 'guest';
   battle = null;
   peer = new Peer();
-  peer.on('open', () => registerGuestConnection(peer.connect(roomPeerId(code), { reliable: true }), code));
-  peer.on('error', () => setPanelFeedback('room-feedback', 'Room not found or the host is offline.', 'bad'));
-  setPanelFeedback('room-feedback', `Connecting to room ${code}...`, 'good');
+  peer.on('open', () => registerGuestConnection(peer.connect(roomPeerId(targetName), { reliable: true }), targetName));
+  peer.on('error', () => setPanelFeedback('room-feedback', 'That ranger is not online or the match could not be opened.', 'bad'));
+  setPanelFeedback('room-feedback', `Challenging ${targetName}...`, 'good');
   render();
 }
 
