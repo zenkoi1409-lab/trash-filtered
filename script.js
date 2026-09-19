@@ -99,6 +99,7 @@ let roomRole = '';
 let battle = null;
 let peer = null;
 let peerConnection = null;
+let directMatchTimeout = null;
 
 const $ = (id) => document.getElementById(id);
 const feedback = $('feedback');
@@ -177,6 +178,10 @@ function setPanelFeedback(id, message, type = '') {
 }
 
 function closePeerConnection() {
+  if (directMatchTimeout) {
+    clearTimeout(directMatchTimeout);
+    directMatchTimeout = null;
+  }
   if (peerConnection) peerConnection.close();
   if (peer) peer.destroy();
   peerConnection = null;
@@ -212,6 +217,14 @@ function registerHostConnection(connection) {
   }
   peerConnection = connection;
   connection.on('data', (message) => {
+    if (message?.type === 'ping') {
+      connection.send({ type: 'pong', username: profile.username });
+      return;
+    }
+    if (message?.type === 'pong') {
+      setPanelFeedback('room-feedback', `${message.username || 'Ranger'} is online and ready to battle.`, 'good');
+      return;
+    }
     if (message?.type === 'join') {
       battle.guest = { name: message.username, hp: 100 };
       battle.status = 'active';
@@ -237,11 +250,26 @@ function registerHostConnection(connection) {
 
 function registerGuestConnection(connection, code) {
   peerConnection = connection;
+  const confirmationTimeout = () => {
+    if (peerConnection === connection && battle === null) {
+      setPanelFeedback('room-feedback', `${code} is not online right now. Try another ranger name.`, 'bad');
+      connection.close();
+    }
+  };
+  if (directMatchTimeout) clearTimeout(directMatchTimeout);
+  directMatchTimeout = setTimeout(confirmationTimeout, 4000);
   connection.on('open', () => {
-    connection.send({ type: 'join', username: profile.username });
-    setPanelFeedback('room-feedback', `Connected to room ${code}. Waiting for the battle state.`, 'good');
+    connection.send({ type: 'ping', username: profile.username });
+    setPanelFeedback('room-feedback', `Connecting to ${code}...`, 'good');
   });
   connection.on('data', (message) => {
+    if (message?.type === 'pong') {
+      clearTimeout(directMatchTimeout);
+      directMatchTimeout = null;
+      connection.send({ type: 'join', username: profile.username });
+      setPanelFeedback('room-feedback', `Connected to ${code}. Waiting for the battle state.`, 'good');
+      return;
+    }
     if (message?.type === 'state') {
       room = message.room;
       roomRole = 'guest';
@@ -250,7 +278,13 @@ function registerGuestConnection(connection, code) {
     }
     if (message?.type === 'error') setPanelFeedback('room-feedback', message.message, 'bad');
   });
-  connection.on('close', () => setPanelFeedback('room-feedback', 'The room connection closed.', 'bad'));
+  connection.on('close', () => {
+    if (directMatchTimeout) {
+      clearTimeout(directMatchTimeout);
+      directMatchTimeout = null;
+    }
+    setPanelFeedback('room-feedback', 'The room connection closed.', 'bad');
+  });
 }
 
 function createRoom() {
@@ -305,7 +339,14 @@ function joinRoom() {
   roomRole = 'guest';
   battle = null;
   peer = new Peer();
-  peer.on('open', () => registerGuestConnection(peer.connect(roomPeerId(targetName), { reliable: true }), targetName));
+  peer.on('open', () => {
+    const connection = peer.connect(roomPeerId(targetName), { reliable: true });
+    connection.on('error', () => {
+      if (directMatchTimeout) clearTimeout(directMatchTimeout);
+      setPanelFeedback('room-feedback', `${targetName} is not online right now. Try another ranger name.`, 'bad');
+    });
+    registerGuestConnection(connection, targetName);
+  });
   peer.on('error', () => setPanelFeedback('room-feedback', 'That ranger is not online or the match could not be opened.', 'bad'));
   setPanelFeedback('room-feedback', `Challenging ${targetName}...`, 'good');
   render();
